@@ -89,6 +89,8 @@ platform :android do
     generate_android_icons(res_dir: "automotive/src/main/res/", icon_src: "#{icon_path}")
     replace_splashscreen(drawable_dir: "automotive/src/main/res/drawable/", splashscreen_src: "#{splash_path}")
 
+    # Update Status -> SIGNING
+    update_build_status(status: Enums::Status::SIGNING, job_id: job_id, api_key: api_key, base_url: base_url)
     get_keystore_info(api_key: api_key, base_url: base_url, application_config: application_config)
     keystore_info = Actions.lane_context[SharedValues::KEYSTORE_INFO]
     keystore_path = get_keystore(api_key: api_key, base_url: base_url, keystore_info: keystore_info)
@@ -106,6 +108,7 @@ platform :android do
     # Update Status -> BUILDING
     update_build_status(status: Enums::Status::BUILDING, job_id: job_id, api_key: api_key, base_url: base_url)
     gradle(task: "clean assembleProdRelease bundleProdRelease", properties: { "applicationId" => application_config[:applicationId] })
+    # Update Status -> COMPLETED
     update_build_status(status: Enums::Status::COMPLETED, job_id: job_id, api_key: api_key, base_url: base_url)
   end
 

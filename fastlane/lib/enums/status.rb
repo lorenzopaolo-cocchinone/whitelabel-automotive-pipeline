@@ -6,6 +6,9 @@ module Enums
       @name = name
     end
 
+    REQUESTED   = new(:requested)
+    PENDING     = new(:pending)
+    STARTED     = new(:started)
     PREPARING   = new(:preparing)
     BUILDING    = new(:building)
     SIGNING     = new(:signing)
@@ -15,6 +18,8 @@ module Enums
     CANCELLED   = new(:cancelled)
 
     ALL = [
+      REQUESTED,
+      PENDING,
       PREPARING,
       BUILDING,
       SIGNING,
