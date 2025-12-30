@@ -46,10 +46,17 @@ platform :android do
         )
       end
     rescue => e
+      truncated_message = if e.message.length > 255
+        e.message[0..255] + "..."
+      else
+        e.message
+      end
+
       update_build_status(
         job_id: job_id,
         api_key: api_key,
         base_url: base_url,
+        message: truncated_message,
         status: Enums::Status::FAILED,
       )
       raise

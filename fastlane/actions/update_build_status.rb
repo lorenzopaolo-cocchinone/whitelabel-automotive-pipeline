@@ -8,8 +8,8 @@ module Fastlane
         status = params[:status]
         job_id = params[:job_id]
         api_key = params[:api_key]
+        message = params[:message]
         base_url = params[:base_url]
-
 
         UI.user_error!("Missing API key") unless api_key
         UI.user_error!("Missing CMS Base url") unless base_url
@@ -21,6 +21,7 @@ module Fastlane
           status: status.to_s(),
           updatedAt: Time.now.utc.iso8601  # timestamp ISO8601
         }
+        payload[:message] = message if message
 
         response = HTTParty.post(
           "#{base_url}/webhook/pipeline",
@@ -56,6 +57,12 @@ module Fastlane
             description: "New Status",
             optional: true,
             type: Enums::Status
+          ),
+          FastlaneCore::ConfigItem.new(
+            key: :message,
+            description: "Optional Message",
+            optional: true,
+            type: String
           ),
           FastlaneCore::ConfigItem.new(
             key: :job_id,
