@@ -6,16 +6,16 @@ module Enums
       @name = name
     end
 
-    REQUESTED   = new(:requested)
-    PENDING     = new(:pending)
-    STARTED     = new(:started)
-    PREPARING   = new(:preparing)
-    BUILDING    = new(:building)
-    SIGNING     = new(:signing)
-    PUBLISHING  = new(:publishing)
-    COMPLETED   = new(:completed)
-    FAILED      = new(:failed)
-    CANCELLED   = new(:cancelled)
+    REQUESTED   = new(:Requested)
+    PENDING     = new(:Pending)
+    STARTED     = new(:Started)
+    PREPARING   = new(:Preparing)
+    BUILDING    = new(:Building)
+    SIGNING     = new(:Signing)
+    PUBLISHING  = new(:Publishing)
+    COMPLETED   = new(:Completed)
+    FAILED      = new(:Failed)
+    CANCELLED   = new(:Cancelled)
 
     ALL = [
       REQUESTED,
