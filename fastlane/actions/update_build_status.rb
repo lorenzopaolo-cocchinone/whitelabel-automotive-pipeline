@@ -23,7 +23,11 @@ module Fastlane
           status: status.to_s(),
           updatedAt: Time.now.utc.iso8601  # timestamp ISO8601
         }
-        payload[:message] = message if message
+
+        if message && !message.empty?
+          # 252 char of message + 3 dots = 255 - NICE!
+          payload[:message] = message.length > 252 ? message[0..251] + "..." : message
+        end
 
         url = "#{base_url}/#{endpoint}"
         response = HTTParty.post(
