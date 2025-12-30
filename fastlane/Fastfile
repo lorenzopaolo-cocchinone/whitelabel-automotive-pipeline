@@ -1,0 +1,124 @@
+# This file contains the fastlane.tools configuration
+# You can find the documentation at https://docs.fastlane.tools
+#
+# For a list of all available actions, check out
+#
+#     https://docs.fastlane.tools/actions
+#
+# For a list of all available plugins, check out
+#
+#     https://docs.fastlane.tools/plugins/available-plugins
+#
+
+# Uncomment the line if you want fastlane to automatically update itself
+# update_fastlane
+default_platform(:android)
+require_relative 'lib/enums/status'
+
+platform :android do
+  desc "Execute the Whitelabel Pipeline"
+  lane :whitelable_pipeline do |options|
+    
+    job_id = options[:job_id]&.strip
+    api_key = options[:api_key]&.strip
+    base_url = options[:base_url]&.strip
+    local_env = options[:local_environment].to_s.downcase == "true"
+
+    UI.message("Local Env? #{local_env}")
+    validate_options(api_key: api_key, base_url: base_url, job_id: job_id)
+
+    begin
+      prepare(
+        job_id: job_id,
+        api_key: api_key,
+        base_url: base_url
+      )
+
+      build(
+        job_id: job_id,
+        api_key: api_key,
+        base_url: base_url
+      )
+
+      if local_env
+        install_apk(
+          apk_path: Actions.lane_context[SharedValues::GRADLE_APK_OUTPUT_PATH]
+        )
+      end
+    rescue => e
+      update_build_status(
+        job_id: job_id,
+        api_key: api_key,
+        base_url: base_url,
+        status: Enums::Status::FAILED,
+      )
+      raise
+    ensure
+      temp_assets_folder = Actions.lane_context[SharedValues::ASSETS_TEMP_FOLDER]
+      if (temp_assets_folder != nil) 
+        FileUtils.remove_entry(temp_assets_folder)
+        UI.message("Temporary assets folder #{temp_assets_folder} deleted")
+      end
+    end
+  end
+
+  desc "Prepare Environment for Android Automotive Build"
+  lane :prepare do |options|
+
+    job_id = options[:job_id]
+    api_key = options[:api_key]
+    base_url = options[:base_url]
+
+    # Update Status -> PREPARING
+    update_build_status(status: Enums::Status::PREPARING, job_id: job_id, api_key: api_key, base_url: base_url)
+    
+    # Request the Application Configuration Object
+    get_application_config(api_key: api_key, base_url: base_url)
+
+    # Create the local.properties
+    application_config = Actions.lane_context[SharedValues::APPLICATION_CONFIG_JSON]
+
+    create_local_properties(application_config: application_config)
+    change_application_name(application_config: application_config, strings_path: "automotive/src/main/res/values/strings.xml")
+    change_firebase_package_name(application_config: application_config, firebase_json_path: "automotive/google-services.json")
+
+    result = download_assets(api_key: api_key, base_url: base_url, application_config: application_config)
+    icon_path = result[:files][:icon]
+    splash_path = result[:files][:splash]
+
+    generate_android_icons(res_dir: "automotive/src/main/res/", icon_src: "#{icon_path}")
+    replace_splashscreen(drawable_dir: "automotive/src/main/res/drawable/", splashscreen_src: "#{splash_path}")
+
+    get_keystore_info(api_key: api_key, base_url: base_url, application_config: application_config)
+    keystore_info = Actions.lane_context[SharedValues::KEYSTORE_INFO]
+    keystore_path = get_keystore(api_key: api_key, base_url: base_url, keystore_info: keystore_info)
+    create_keystore_properties(keystore_info: keystore_info, keystore_src: keystore_path)
+  end
+
+  desc "Build the Android Application Bundle"
+  lane :build do |options|
+
+    job_id = options[:job_id]
+    api_key = options[:api_key]
+    base_url = options[:base_url]
+    application_config = Actions.lane_context[SharedValues::APPLICATION_CONFIG_JSON]
+
+    # Update Status -> BUILDING
+    update_build_status(status: Enums::Status::BUILDING, job_id: job_id, api_key: api_key, base_url: base_url)
+    gradle(task: "clean assembleProdRelease bundleProdRelease", properties: { "applicationId" => application_config[:applicationId] })
+    update_build_status(status: Enums::Status::COMPLETED, job_id: job_id, api_key: api_key, base_url: base_url)
+  end
+
+  desc "Install APK"
+  lane :install_apk do |options|
+    apk_path = options[:apk_path]
+    UI.message("Installing APK: #{apk_path} on Emulator")
+
+    if File.exist?(apk_path)
+      sh("adb install -r #{apk_path}")
+      UI.success("APK installed successfully!")
+    else
+      UI.user_error!("APK not found at #{apk_path}. Build the APK first!")
+    end
+  end
+end
