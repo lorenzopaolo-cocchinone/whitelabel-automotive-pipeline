@@ -8,16 +8,14 @@ module Fastlane
       def self.run(params)
         api_key = params[:api_key]
         base_url = params[:base_url]
-        application_config = params[:application_config]
-        package_name = application_config[:applicationId]
+        endpoint = params[:endpoint]
         
-        UI.user_error!("Missing API key") unless api_key
-        UI.user_error!("Missing CMS Base url") unless base_url
-        UI.user_error!("Missing Package Name in Application Config JSON") unless package_name
+        UI.user_error!("Missing API key") if api_key.nil? || api_key.strip.empty?
+        UI.user_error!("Missing Endpoint") if endpoint.nil? || endpoint.strip.empty?
+        UI.user_error!("Missing CMS Base url") if base_url.nil? || base_url.strip.empty?
 
-        # TODO give in input the endpoint
-        url = "#{base_url}/pipeline/android/keystore/#{package_name}"
-        response = HTTParty.get(url,headers: {
+        url = "#{base_url}/#{endpoint}"
+        response = HTTParty.get(url, headers: {
           "Authorization" => "Bearer #{api_key}",
           "Content-Type" => "application/json"
         })
@@ -33,10 +31,10 @@ module Fastlane
       def self.available_options
         [
           FastlaneCore::ConfigItem.new(
-            key: :application_config,
-            description: "Application Config JSON",
+            key: :endpoint,
+            description: "CMS Endpoint for keystore info",
             optional: true,
-            type: Hash
+            type: String
           ),
           FastlaneCore::ConfigItem.new(
             key: :api_key,

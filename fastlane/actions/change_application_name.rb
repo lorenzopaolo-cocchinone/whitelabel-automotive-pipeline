@@ -10,7 +10,6 @@ module Fastlane
         UI.user_error!("Missing strings.xml path") unless strings_path
         UI.user_error!("Missing Application Name in Application Config JSON") unless application_name
 
-        # TODO it's ok to have hardcoded?
         relative_strings_path = File.join(Dir.pwd, strings_path)
         UI.message("Modifying strings.xml at #{relative_strings_path} with application name: #{application_name}")
         

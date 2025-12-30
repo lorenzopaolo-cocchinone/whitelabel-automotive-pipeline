@@ -27,17 +27,20 @@ platform :android do
     UI.message("Local Env? #{local_env}")
     validate_options(api_key: api_key, base_url: base_url, job_id: job_id)
 
+    webhook_endpoint = "webhook/pipeline"
     begin
       prepare(
         job_id: job_id,
         api_key: api_key,
-        base_url: base_url
+        base_url: base_url,
+        webhook_endpoint: webhook_endpoint
       )
 
       build(
         job_id: job_id,
         api_key: api_key,
-        base_url: base_url
+        base_url: base_url,
+        webhook_endpoint: webhook_endpoint
       )
 
       if local_env
@@ -58,6 +61,7 @@ platform :android do
         base_url: base_url,
         message: truncated_message,
         status: Enums::Status::FAILED,
+        endpoint: webhook_endpoint
       )
       raise
     ensure
@@ -75,33 +79,80 @@ platform :android do
     job_id = options[:job_id]
     api_key = options[:api_key]
     base_url = options[:base_url]
+    webhook_endpoint = options[:webhook_endpoint]
 
     # Update Status -> PREPARING
-    update_build_status(status: Enums::Status::PREPARING, job_id: job_id, api_key: api_key, base_url: base_url)
+    update_build_status(
+      status: Enums::Status::PREPARING,
+      job_id: job_id,
+      api_key: api_key,
+      base_url: base_url,
+      endpoint: webhook_endpoint
+    )
     
     # Request the Application Configuration Object
-    get_application_config(api_key: api_key, base_url: base_url)
+    get_application_config(
+      api_key: api_key, 
+      base_url: base_url,
+      endpoint: "pipeline/application-config"
+    )
 
     # Create the local.properties
     application_config = Actions.lane_context[SharedValues::APPLICATION_CONFIG_JSON]
 
     create_local_properties(application_config: application_config)
-    change_application_name(application_config: application_config, strings_path: "automotive/src/main/res/values/strings.xml")
-    change_firebase_package_name(application_config: application_config, firebase_json_path: "automotive/google-services.json")
 
-    result = download_assets(api_key: api_key, base_url: base_url, application_config: application_config)
+    change_application_name(
+      application_config: application_config,
+      strings_path: "automotive/src/main/res/values/strings.xml"
+    )
+
+    change_firebase_package_name(
+      application_config: application_config,
+      firebase_json_path: "automotive/google-services.json"
+    )
+
+    result = download_assets(
+      api_key: api_key,
+      base_url: base_url,
+      application_config: application_config
+    )
+    
     icon_path = result[:files][:icon]
     splash_path = result[:files][:splash]
 
-    generate_android_icons(res_dir: "automotive/src/main/res/", icon_src: "#{icon_path}")
-    replace_splashscreen(drawable_dir: "automotive/src/main/res/drawable/", splashscreen_src: "#{splash_path}")
+    generate_android_icons(
+      res_dir: "automotive/src/main/res/",
+      icon_src: "#{icon_path}"
+    )
+    
+    replace_splashscreen(
+      drawable_dir: "automotive/src/main/res/drawable/",
+      splashscreen_src: "#{splash_path}"
+    )
 
     # Update Status -> SIGNING
-    update_build_status(status: Enums::Status::SIGNING, job_id: job_id, api_key: api_key, base_url: base_url)
-    get_keystore_info(api_key: api_key, base_url: base_url, application_config: application_config)
+    update_build_status(
+      status: Enums::Status::SIGNING,
+      job_id: job_id,
+      api_key: api_key,
+      base_url: base_url,
+      endpoint: webhook_endpoint
+    )
+
+    get_keystore_info(
+      api_key: api_key,
+      base_url: base_url,
+      endpoint: "pipeline/android/keystore/#{application_config[:applicationId]}"
+    )
+
     keystore_info = Actions.lane_context[SharedValues::KEYSTORE_INFO]
     keystore_path = get_keystore(api_key: api_key, base_url: base_url, keystore_info: keystore_info)
-    create_keystore_properties(keystore_info: keystore_info, keystore_src: keystore_path)
+    
+    create_keystore_properties(
+      keystore_info: keystore_info,
+      keystore_src: keystore_path
+    )
   end
 
   desc "Build the Android Application Bundle"
@@ -110,13 +161,31 @@ platform :android do
     job_id = options[:job_id]
     api_key = options[:api_key]
     base_url = options[:base_url]
+    webhook_endpoint = options[:webhook_endpoint]
     application_config = Actions.lane_context[SharedValues::APPLICATION_CONFIG_JSON]
 
     # Update Status -> BUILDING
-    update_build_status(status: Enums::Status::BUILDING, job_id: job_id, api_key: api_key, base_url: base_url)
-    gradle(task: "clean assembleProdRelease bundleProdRelease", properties: { "applicationId" => application_config[:applicationId] })
+    update_build_status(
+      status: Enums::Status::BUILDING,
+      job_id: job_id,
+      api_key: api_key,
+      base_url: base_url,
+      endpoint: webhook_endpoint
+    )
+    
+    gradle(
+      task: "clean assembleProdRelease bundleProdRelease",
+      properties: { "applicationId" => application_config[:applicationId] }
+    )
+
     # Update Status -> COMPLETED
-    update_build_status(status: Enums::Status::COMPLETED, job_id: job_id, api_key: api_key, base_url: base_url)
+    update_build_status(
+      status: Enums::Status::COMPLETED,
+      job_id: job_id,
+      api_key: api_key,
+      base_url: base_url,
+      endpoint: webhook_endpoint
+    )
   end
 
   desc "Install APK"
